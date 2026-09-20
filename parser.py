@@ -4,7 +4,7 @@ from typing import Dict, Optional
 
 PYTHON_FILE_LINE_RE = re.compile(r'File\s+"(?P<file>[^"]+)",\s+line\s+(?P<line>\d+)')
 JS_STACK_RE = re.compile(r'\((?P<file>[^()\n]+?):(?P<line>\d+):\d+\)')
-ERROR_TYPE_RE = re.compile(r'(?P<error>[A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))')
+ERROR_TOKEN_RE = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 
 
 def extract_error_details(error_text: str) -> Dict[str, Optional[object]]:
@@ -32,9 +32,13 @@ def extract_error_details(error_text: str) -> Dict[str, Optional[object]]:
 
     lines = [line.strip() for line in error_text.splitlines() if line.strip()]
     for line in reversed(lines):
-        match = ERROR_TYPE_RE.search(line)
-        if match:
-            details["error_type"] = match.group("error")
+        before_colon = line.split(":", 1)[0]
+        candidates = ERROR_TOKEN_RE.findall(before_colon)
+        for token in reversed(candidates):
+            if token.endswith("Error") or token.endswith("Exception"):
+                details["error_type"] = token
+                break
+        if details["error_type"]:
             break
 
     return details
