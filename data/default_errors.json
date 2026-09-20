@@ -1,0 +1,138 @@
+[
+  {
+    "id": "py-001",
+    "language": "Python",
+    "error_type": "SyntaxError",
+    "error_pattern": "SyntaxError: invalid syntax",
+    "concept_nudge": "Read the code on the exact line slowly and look for a missing/extra symbol.",
+    "location_clue": "The parser usually points at or right after the malformed token.",
+    "root_cause": "A structural typo such as missing colon, bracket, or quote.",
+    "troubleshooting_checklist": [
+      "Check for missing colon after if/for/while/def/class.",
+      "Balance parentheses, brackets, and braces.",
+      "Verify string quotes are properly closed.",
+      "Reformat the line to spot subtle typos."
+    ],
+    "bad_code": "def greet(name)\n    print(f'Hello {name}')",
+    "fixed_code": "def greet(name):\n    print(f'Hello {name}')"
+  },
+  {
+    "id": "py-002",
+    "language": "Python",
+    "error_type": "NameError",
+    "error_pattern": "NameError: name 'x' is not defined",
+    "concept_nudge": "Ask yourself where the variable/function should have been created before use.",
+    "location_clue": "The failing line references an identifier that Python cannot resolve in scope.",
+    "root_cause": "Misspelled name or using a variable before assignment/import.",
+    "troubleshooting_checklist": [
+      "Check spelling and capitalization of the identifier.",
+      "Ensure the variable is assigned before the failing line.",
+      "Confirm required imports are present.",
+      "Verify scope (inside vs outside function/class)."
+    ],
+    "bad_code": "total = price + tax\nprint(totl)",
+    "fixed_code": "total = price + tax\nprint(total)"
+  },
+  {
+    "id": "py-003",
+    "language": "Python",
+    "error_type": "TypeError",
+    "error_pattern": "TypeError: unsupported operand type(s)",
+    "concept_nudge": "Inspect operand types before combining values.",
+    "location_clue": "The operator/function on the line receives incompatible value types.",
+    "root_cause": "Mixing incompatible data types without conversion.",
+    "troubleshooting_checklist": [
+      "Print or log type(...) for key operands.",
+      "Convert strings/numbers explicitly.",
+      "Validate function argument types.",
+      "Guard against None values."
+    ],
+    "bad_code": "count = '5'\nresult = count + 2",
+    "fixed_code": "count = '5'\nresult = int(count) + 2"
+  },
+  {
+    "id": "py-004",
+    "language": "Python",
+    "error_type": "IndexError",
+    "error_pattern": "IndexError: list index out of range",
+    "concept_nudge": "Compare the index you use against the container length.",
+    "location_clue": "A subscription expression accesses a position that does not exist.",
+    "root_cause": "Index is greater than or equal to list length (or too negative).",
+    "troubleshooting_checklist": [
+      "Check len(list) before indexing.",
+      "Review loop boundaries (range start/stop).",
+      "Use safe access guards for optional items.",
+      "Prefer iteration over direct indexing when possible."
+    ],
+    "bad_code": "items = ['a', 'b']\nprint(items[2])",
+    "fixed_code": "items = ['a', 'b']\nif len(items) > 2:\n    print(items[2])"
+  },
+  {
+    "id": "js-001",
+    "language": "JavaScript",
+    "error_type": "ReferenceError",
+    "error_pattern": "ReferenceError: variable is not defined",
+    "concept_nudge": "Find where the variable should be declared before it is used.",
+    "location_clue": "The stack trace line uses an identifier unavailable in current scope.",
+    "root_cause": "Using undeclared variable or typo in variable name.",
+    "troubleshooting_checklist": [
+      "Declare variables with let/const before use.",
+      "Check spelling and case sensitivity.",
+      "Confirm variable is in scope.",
+      "Check module/import boundaries."
+    ],
+    "bad_code": "function showTotal(price) {\n  return price + tax;\n}",
+    "fixed_code": "function showTotal(price, tax) {\n  return price + tax;\n}"
+  },
+  {
+    "id": "js-002",
+    "language": "JavaScript",
+    "error_type": "TypeError",
+    "error_pattern": "TypeError: Cannot read properties of undefined",
+    "concept_nudge": "Trace the object value right before property access.",
+    "location_clue": "A dot/property lookup is attempted on undefined or null.",
+    "root_cause": "Object was not initialized or lookup key returned undefined.",
+    "troubleshooting_checklist": [
+      "Log object value before property access.",
+      "Use optional chaining when appropriate.",
+      "Provide defaults for missing values.",
+      "Validate API response shape."
+    ],
+    "bad_code": "const user = undefined;\nconsole.log(user.name);",
+    "fixed_code": "const user = undefined;\nconsole.log(user?.name ?? 'Unknown user');"
+  },
+  {
+    "id": "js-003",
+    "language": "JavaScript",
+    "error_type": "SyntaxError",
+    "error_pattern": "SyntaxError: Unexpected token",
+    "concept_nudge": "The parser hit a token that does not fit the grammar at that point.",
+    "location_clue": "Look near the token flagged in the console/build output.",
+    "root_cause": "Missing comma/bracket/brace or malformed expression.",
+    "troubleshooting_checklist": [
+      "Check matching braces/brackets/parentheses.",
+      "Verify commas in objects/arrays.",
+      "Inspect recent edits around the line.",
+      "Run formatter to reveal structure issues."
+    ],
+    "bad_code": "const settings = {\n  mode: 'dark'\n  size: 'lg'\n};",
+    "fixed_code": "const settings = {\n  mode: 'dark',\n  size: 'lg'\n};"
+  },
+  {
+    "id": "js-004",
+    "language": "JavaScript",
+    "error_type": "RangeError",
+    "error_pattern": "RangeError: Maximum call stack size exceeded",
+    "concept_nudge": "Check whether recursion has a reliable termination condition.",
+    "location_clue": "Repeated stack frames indicate a function calling itself endlessly.",
+    "root_cause": "Infinite recursion due to missing/incorrect base case.",
+    "troubleshooting_checklist": [
+      "Add/verify recursion base case.",
+      "Log function inputs each call.",
+      "Ensure recursive arguments converge.",
+      "Consider iterative approach for deep recursion."
+    ],
+    "bad_code": "function countdown(n) {\n  return countdown(n - 1);\n}",
+    "fixed_code": "function countdown(n) {\n  if (n <= 0) return 0;\n  return countdown(n - 1);\n}"
+  }
+]
