@@ -21,6 +21,35 @@ class DiagnosisResult:
 
 LANGUAGE_CHOICES = ["Python", "JavaScript", "TypeScript", "C++", "Java", "Go", "SQL"]
 
+LANGUAGE_ICONS: Dict[str, str] = {
+    "Python": "🐍",
+    "JavaScript": "🟨",
+    "TypeScript": "🔷",
+    "C++": "⚙️",
+    "Java": "☕",
+    "Go": "🐹",
+    "SQL": "🗄️",
+}
+
+CONFIDENCE_STYLES: Dict[str, Dict[str, str]] = {
+    "high": {"pct": "92%", "color": "#34d399", "label": "High"},
+    "medium": {"pct": "60%", "color": "#fbbf24", "label": "Medium"},
+    "low": {"pct": "30%", "color": "#f87171", "label": "Low"},
+}
+
+
+def confidence_gauge_html(confidence: str) -> str:
+    style = CONFIDENCE_STYLES.get(confidence.strip().lower(), {"pct": "50%", "color": "#60a5fa", "label": confidence})
+    safe_label = html.escape(confidence or style["label"])
+    return f"""
+    <div class="gauge-wrap">
+        <div class="gauge-label"><span>Confidence</span><span>{safe_label}</span></div>
+        <div class="gauge-track">
+            <div class="gauge-fill" style="width:{style['pct']}; background:{style['color']};"></div>
+        </div>
+    </div>
+    """
+
 TEMPLATES: Dict[str, Dict[str, str]] = {
     "Python · IndexError": {
         "language": "Python",
@@ -59,88 +88,183 @@ def inject_css() -> None:
     st.markdown(
         """
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
         :root {
-            --bg-main: radial-gradient(circle at top left, #1f1147 0%, #0c1327 45%, #06111a 100%);
-            --glass: rgba(14, 20, 36, 0.76);
-            --border: rgba(129, 140, 248, 0.32);
-            --text: #e5e7eb;
-            --muted: #9ca3af;
+            --bg-main: radial-gradient(circle at 15% 10%, #2a1263 0%, #14103a 32%, #060814 68%, #030509 100%);
+            --glass: rgba(16, 20, 40, 0.72);
+            --glass-strong: rgba(20, 24, 48, 0.88);
+            --border: rgba(139, 148, 255, 0.28);
+            --text: #e8eaf6;
+            --muted: #9aa1c4;
             --accent-1: #8b5cf6;
             --accent-2: #22d3ee;
             --accent-3: #34d399;
+            --accent-4: #f472b6;
         }
+
+        html, body, [class*="css"] { font-family: 'Space Grotesk', sans-serif; }
+        code, pre, .stCodeBlock, div[data-testid="stCodeBlock"] * { font-family: 'JetBrains Mono', monospace !important; }
+
         .stApp {
             background: var(--bg-main);
+            background-size: 200% 200%;
+            animation: drift 22s ease-in-out infinite;
             color: var(--text);
         }
-        .main-header {
-            border: 1px solid rgba(167, 139, 250, 0.42);
-            background: linear-gradient(135deg, rgba(55, 48, 163, 0.42), rgba(5, 150, 105, 0.22));
-            border-radius: 22px;
-            padding: 1.25rem 1.5rem;
-            box-shadow: 0 0 40px rgba(99, 102, 241, 0.2);
-            margin-bottom: 1rem;
+        @keyframes drift {
+            0% { background-position: 0% 0%; }
+            50% { background-position: 100% 60%; }
+            100% { background-position: 0% 0%; }
         }
+
+        section[data-testid="stSidebar"] {
+            background: linear-gradient(180deg, rgba(20, 16, 48, 0.96), rgba(8, 10, 24, 0.98));
+            border-right: 1px solid rgba(139, 148, 255, 0.18);
+        }
+
+        /* ---------- Header ---------- */
+        .main-header {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(167, 139, 250, 0.42);
+            background: linear-gradient(135deg, rgba(80, 40, 200, 0.45), rgba(6, 182, 212, 0.18) 55%, rgba(5, 150, 105, 0.2));
+            border-radius: 24px;
+            padding: 1.5rem 1.75rem;
+            box-shadow: 0 0 55px rgba(99, 102, 241, 0.25), inset 0 1px 0 rgba(255,255,255,0.06);
+            margin-bottom: 1.1rem;
+        }
+        .main-header::before {
+            content: "";
+            position: absolute;
+            inset: -40%;
+            background: conic-gradient(from 0deg, rgba(139,92,246,0.18), rgba(34,211,238,0.14), rgba(52,211,153,0.14), rgba(244,114,182,0.14), rgba(139,92,246,0.18));
+            animation: spin 16s linear infinite;
+            pointer-events: none;
+        }
+        .main-header > * { position: relative; z-index: 1; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .gradient-title {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #c4b5fd, #67e8f9, #6ee7b7, #c4b5fd);
+            background-size: 300% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: shine 6s linear infinite;
+        }
+        @keyframes shine { to { background-position: 300% center; } }
+
+        .cursor-blink {
+            display: inline-block;
+            width: 3px;
+            height: 1.1em;
+            background: #67e8f9;
+            margin-left: 4px;
+            vertical-align: text-bottom;
+            animation: blink 1s steps(1) infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
         .badge-anim {
             display: inline-block;
             border-radius: 999px;
-            padding: 0.28rem 0.7rem;
+            padding: 0.3rem 0.75rem;
             font-weight: 600;
             font-size: 0.8rem;
             background: linear-gradient(90deg, #7c3aed, #06b6d4);
             color: #fff;
             animation: pulse 2.4s infinite;
-            margin-bottom: 0.6rem;
+            margin-bottom: 0.7rem;
         }
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.45); }
             70% { box-shadow: 0 0 0 16px rgba(124, 58, 237, 0.01); }
             100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
         }
-        .quick-stat-wrap {
-            display: flex;
-            gap: 0.6rem;
-            flex-wrap: wrap;
-            margin-top: 0.9rem;
-        }
+
+        .quick-stat-wrap { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
         .pill-stat {
             border: 1px solid rgba(52, 211, 153, 0.45);
             color: #d1fae5;
             background: rgba(16, 185, 129, 0.14);
             border-radius: 999px;
-            padding: 0.35rem 0.65rem;
+            padding: 0.35rem 0.7rem;
             font-size: 0.78rem;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
+        .pill-stat:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(52,211,153,0.25); }
+
+        .lang-strip { display: flex; gap: 0.45rem; margin-top: 1rem; flex-wrap: wrap; }
+        .lang-chip {
+            border: 1px solid rgba(255,255,255,0.14);
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 0.25rem 0.55rem;
+            font-size: 0.82rem;
+            transition: transform 0.15s ease;
+        }
+        .lang-chip:hover { transform: translateY(-2px) scale(1.05); background: rgba(255,255,255,0.1); }
+
+        /* ---------- Result cards ---------- */
         .result-card {
             border: 1px solid var(--border);
             background: var(--glass);
             border-radius: 16px;
-            padding: 1rem 1.05rem;
-            margin-bottom: 0.75rem;
-            box-shadow: 0 0 18px rgba(6, 182, 212, 0.12);
+            padding: 1.05rem 1.15rem;
+            margin-bottom: 0.8rem;
+            box-shadow: 0 0 18px rgba(6, 182, 212, 0.1);
+            opacity: 0;
+            transform: translateY(14px);
+            animation: fadeInUp 0.5s ease forwards;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .result-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(167, 139, 250, 0.6);
+            box-shadow: 0 8px 28px rgba(139, 92, 246, 0.22);
+        }
+        @keyframes fadeInUp {
+            to { opacity: 1; transform: translateY(0); }
         }
         .result-title {
-            font-size: 1rem;
+            font-size: 1.02rem;
             font-weight: 700;
             color: #bfdbfe;
-            margin-bottom: 0.45rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
         }
-        .result-body {
-            color: #d1d5db;
-            line-height: 1.55;
-            font-size: 0.94rem;
-        }
+        .result-body { color: #d7d9ec; line-height: 1.6; font-size: 0.95rem; }
+        .result-body ul { margin: 0.2rem 0 0 1.1rem; padding: 0; }
+        .result-body li { margin-bottom: 0.3rem; }
+
         .source-chip {
-            display:inline-block;
-            margin-left:0.5rem;
-            border-radius:999px;
-            padding:0.15rem 0.5rem;
-            font-size:0.72rem;
-            color:#cffafe;
-            border:1px solid rgba(34, 211, 238, 0.45);
-            background:rgba(8, 145, 178, 0.2);
+            display: inline-block;
+            margin: 0 0.5rem 0.6rem 0;
+            border-radius: 999px;
+            padding: 0.18rem 0.6rem;
+            font-size: 0.74rem;
+            color: #cffafe;
+            border: 1px solid rgba(34, 211, 238, 0.45);
+            background: rgba(8, 145, 178, 0.2);
         }
+
+        /* ---------- Confidence gauge ---------- */
+        .gauge-wrap { margin: 0.2rem 0 1rem 0; max-width: 320px; }
+        .gauge-label { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); margin-bottom: 0.3rem; }
+        .gauge-track { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+        .gauge-fill { height: 100%; border-radius: 999px; transition: width 0.6s ease; animation: growBar 0.8s ease; }
+        @keyframes growBar { from { width: 0; } }
+
+        /* ---------- Buttons ---------- */
         .stButton > button {
+            position: relative;
+            overflow: hidden;
             background: linear-gradient(90deg, #8b5cf6, #06b6d4);
             color: white;
             border-radius: 10px;
@@ -148,14 +272,56 @@ def inject_css() -> None:
             font-weight: 700;
             box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
             padding: 0.6rem 1rem;
+            transition: transform 0.12s ease, filter 0.15s ease, box-shadow 0.15s ease;
         }
         .stButton > button:hover {
-            filter: brightness(1.08);
+            filter: brightness(1.12);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(99, 102, 241, 0.45);
         }
+        .stButton > button:active { transform: translateY(0px) scale(0.98); }
+
+        /* Template mini-cards in the sidebar */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+            transform: translateY(-2px);
+            border-color: rgba(139, 148, 255, 0.55) !important;
+        }
+
+        /* ---------- Tabs ---------- */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0.4rem;
+            border-bottom: 1px solid rgba(139, 148, 255, 0.18);
+        }
+        .stTabs [data-baseweb="tab"] {
+            border-radius: 10px 10px 0 0;
+            padding: 0.55rem 1rem;
+            background: rgba(255,255,255,0.03);
+            transition: background 0.15s ease;
+        }
+        .stTabs [data-baseweb="tab"]:hover { background: rgba(139, 92, 246, 0.12); }
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(90deg, rgba(139,92,246,0.28), rgba(34,211,238,0.18));
+            box-shadow: inset 0 -2px 0 #67e8f9;
+        }
+
         div[data-testid="stCodeBlock"] {
             border-radius: 12px;
             border: 1px solid rgba(148, 163, 184, 0.25);
         }
+
+        /* ---------- Footer ---------- */
+        .app-footer {
+            margin-top: 2rem;
+            padding: 0.9rem 1rem;
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--muted);
+            border-top: 1px solid rgba(139, 148, 255, 0.14);
+        }
+        .app-footer span { color: #a5b4fc; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -413,29 +579,34 @@ def choose_provider_from_key(api_key: str) -> str:
 
 
 def render_header() -> None:
+    lang_chips = "".join(
+        f'<span class="lang-chip">{icon} {html.escape(name)}</span>' for name, icon in LANGUAGE_ICONS.items()
+    )
     st.markdown(
-        """
+        f"""
         <div class="main-header">
             <div class="badge-anim">⚡ Instant Debugging Mode</div>
-            <h1 style="margin:0; font-size: 1.85rem;">Error Message Learning Assistant</h1>
+            <h1 class="gradient-title">Error Message Learning Assistant<span class="cursor-blink"></span></h1>
             <p style="margin:0.45rem 0 0; color:#cbd5e1;">Understand stack traces fast, fix confidently, and retain the lesson.</p>
             <div class="quick-stat-wrap">
-                <span class="pill-stat">Supported Languages: 7</span>
-                <span class="pill-stat">Offline Rules: 12+</span>
-                <span class="pill-stat">Ready for Instant Debugging</span>
+                <span class="pill-stat">✨ 7 languages</span>
+                <span class="pill-stat">🧩 12+ offline rules</span>
+                <span class="pill-stat">🤖 Optional LLM boost</span>
             </div>
+            <div class="lang-strip">{lang_chips}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-def render_result_card(title: str, body: str, escape_body: bool = True) -> None:
+def render_result_card(title: str, body: str, escape_body: bool = True, index: int = 0) -> None:
     safe_title = html.escape(title)
     safe_body = html.escape(body) if escape_body else body
+    delay = 0.08 * index
     st.markdown(
         f"""
-        <div class="result-card">
+        <div class="result-card" style="animation-delay:{delay:.2f}s;">
             <div class="result-title">{safe_title}</div>
             <div class="result-body">{safe_body}</div>
         </div>
@@ -454,31 +625,52 @@ def main() -> None:
         st.markdown("### 🧠 Error Assistant")
         st.caption("Developer-first debugging copilot")
 
-        template_name = st.selectbox("Quick-start template", ["None"] + list(TEMPLATES.keys()))
-        if st.button("Load Template") and template_name != "None":
-            template = TEMPLATES[template_name]
-            st.session_state["faulty_code"] = template["faulty_code"]
-            st.session_state["error_log"] = template["error_log"]
-            st.session_state["language"] = template["language"]
-            st.session_state["diagnosis"] = None
+        with st.expander("⚡ How it works", expanded=False):
+            st.markdown(
+                "1. Pick a language and paste your code + traceback\n"
+                "2. Hit **Diagnose & Explain**\n"
+                "3. Get a plain-English cause, a fix, and a side-by-side diff\n"
+                "4. Add an API key in the sidebar for LLM-powered answers, or rely on the built-in offline engine"
+            )
+
+        st.markdown("#### 🚀 Quick-start templates")
+        st.caption("Tap one to load it instantly")
+        for name, template in TEMPLATES.items():
+            with st.container(border=True):
+                cols = st.columns([5, 2])
+                with cols[0]:
+                    icon = LANGUAGE_ICONS.get(template["language"], "🧩")
+                    st.markdown(f"**{icon} {name}**")
+                with cols[1]:
+                    if st.button("Load", key=f"tmpl_{name}", use_container_width=True):
+                        st.session_state["faulty_code"] = template["faulty_code"]
+                        st.session_state["error_log"] = template["error_log"]
+                        st.session_state["language"] = template["language"]
+                        st.session_state["diagnosis"] = None
+                        st.rerun()
 
         st.markdown("---")
         api_key = st.text_input("Optional LLM API Key (Gemini/OpenAI)", type="password")
         provider_choice = st.selectbox("Provider", ["Auto", "Gemini", "OpenAI"], index=0)
         enable_llm = st.toggle("Use LLM when key is present", value=True)
-        show_confidence = st.toggle("Show confidence badge", value=True)
+        show_confidence = st.toggle("Show confidence gauge", value=True)
 
-        if st.button("Clear All"):
+        if st.button("🗑️ Clear All", use_container_width=True):
             reset_inputs()
             st.rerun()
 
-    selected_language = st.selectbox(
-        "Programming Language",
+    st.markdown("##### Programming language")
+    selected_language = st.pills(
+        "Programming language",
         LANGUAGE_CHOICES,
+        format_func=lambda lang: f"{LANGUAGE_ICONS.get(lang, '🧩')} {lang}",
         key="language",
+        label_visibility="collapsed",
     )
+    if not selected_language:
+        selected_language = "Python"
 
-    tab_code, tab_trace = st.tabs(["Faulty Code", "Traceback / Error Log"])
+    tab_code, tab_trace = st.tabs(["📝 Faulty Code", "📋 Traceback / Error Log"])
     with tab_code:
         st.session_state["faulty_code"] = st.text_area(
             "Paste buggy code here",
@@ -494,14 +686,17 @@ def main() -> None:
             placeholder="Traceback (most recent call last): ...",
         )
 
-    if st.button("Diagnose & Explain", type="primary", use_container_width=True):
+    if st.button("🔎 Diagnose & Explain", type="primary", use_container_width=True):
         if not st.session_state["error_log"].strip() and not st.session_state["faulty_code"].strip():
             st.warning("Add faulty code or an error log to diagnose.")
         else:
-            with st.spinner("Running analysis engine..."):
+            use_llm = bool(api_key.strip() and enable_llm)
+            with st.status("🧠 Analyzing your error...", expanded=True) as status:
+                st.write("🔎 Scanning the traceback for a known signature...")
                 result: Optional[DiagnosisResult] = None
-                if api_key.strip() and enable_llm:
+                if use_llm:
                     provider = choose_provider_from_key(api_key) if provider_choice == "Auto" else provider_choice
+                    st.write(f"🤖 Asking {provider} for a diagnosis...")
                     result, llm_error = llm_diagnose(
                         provider=provider,
                         api_key=api_key.strip(),
@@ -512,37 +707,46 @@ def main() -> None:
                     if llm_error:
                         st.warning(f"{llm_error} — falling back to the offline rule engine.")
                 if result is None:
+                    st.write("🧩 Matching against the offline pattern library...")
                     result = offline_diagnose(
                         language=selected_language,
                         code=st.session_state["faulty_code"],
                         error_log=st.session_state["error_log"],
                     )
+                st.write("🛠️ Building the fix and knowledge check...")
                 st.session_state["diagnosis"] = result
+                status.update(label="✅ Diagnosis ready", state="complete", expanded=False)
+            if result.confidence.strip().lower() == "high":
+                st.toast("Nailed it — high-confidence fix found!", icon="✅")
 
     diagnosis: Optional[DiagnosisResult] = st.session_state.get("diagnosis")
     if diagnosis:
-        source_chip = f"<span class='source-chip'>{html.escape(diagnosis.source)}</span>"
-        confidence_chip = (
-            f"<span class='source-chip'>Confidence: {html.escape(diagnosis.confidence)}</span>"
-            if show_confidence
-            else ""
-        )
-        st.markdown(f"{source_chip}{confidence_chip}", unsafe_allow_html=True)
+        st.markdown(f"<span class='source-chip'>{html.escape(diagnosis.source)}</span>", unsafe_allow_html=True)
+        if show_confidence:
+            st.markdown(confidence_gauge_html(diagnosis.confidence), unsafe_allow_html=True)
 
-        render_result_card("💡 What Happened?", diagnosis.what_happened)
-        render_result_card("🔍 Root Cause Identified", diagnosis.root_cause)
-        render_result_card("🛠️ The Fix & Side-by-Side Comparison", diagnosis.fix_explanation)
+        render_result_card("💡 What Happened?", diagnosis.what_happened, index=0)
+        render_result_card("🔍 Root Cause Identified", diagnosis.root_cause, index=1)
+        render_result_card("🛠️ The Fix & Side-by-Side Comparison", diagnosis.fix_explanation, index=2)
 
         left, right = st.columns(2)
         with left:
-            st.caption("Buggy Snippet")
+            st.caption("🐞 Buggy Snippet")
             st.code(diagnosis.buggy_snippet, language=selected_language.lower())
         with right:
-            st.caption("Corrected Snippet")
+            st.caption("✅ Corrected Snippet")
             st.code(diagnosis.fixed_snippet, language=selected_language.lower())
 
         bullet_items = "".join(f"<li>{html.escape(str(tip))}</li>" for tip in diagnosis.knowledge_check[:4])
-        render_result_card("🧠 Knowledge Check & Best Practice", f"<ul>{bullet_items}</ul>", escape_body=False)
+        render_result_card(
+            "🧠 Knowledge Check & Best Practice", f"<ul>{bullet_items}</ul>", escape_body=False, index=3
+        )
+
+    st.markdown(
+        '<div class="app-footer">Built with 💜 for developers who read stack traces at 2am · '
+        "<span>Error Message Learning Assistant</span></div>",
+        unsafe_allow_html=True,
+    )
 
 
 if __name__ == "__main__":
