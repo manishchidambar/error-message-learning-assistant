@@ -1,3 +1,4 @@
+import html
 import json
 import re
 from dataclasses import dataclass
@@ -165,12 +166,14 @@ def reset_inputs() -> None:
     st.session_state["faulty_code"] = ""
     st.session_state["error_log"] = ""
     st.session_state["diagnosis"] = None
+    st.session_state["language"] = "Python"
 
 
 def init_state() -> None:
     st.session_state.setdefault("faulty_code", "")
     st.session_state.setdefault("error_log", "")
     st.session_state.setdefault("diagnosis", None)
+    st.session_state.setdefault("language", "Python")
 
 
 def parse_line_hint(text: str) -> str:
@@ -183,8 +186,7 @@ def infer_variable(text: str) -> str:
     return quoted[0] if quoted else "an unexpected value"
 
 
-def build_offline_patterns() -> List[Dict[str, object]]:
-    return [
+OFFLINE_PATTERNS: List[Dict[str, object]] = [
         {
             "pattern": r"IndexError: list index out of range",
             "language": "Python",
@@ -305,12 +307,12 @@ def build_offline_patterns() -> List[Dict[str, object]]:
             "fixed": "SELECT * FROM users FETCH FIRST 10 ROWS ONLY;",
             "tips": ["Check dialect differences before copying queries.", "Keep environment-specific query variants."],
         },
-    ]
+]
 
 
 def offline_diagnose(language: str, code: str, error_log: str) -> DiagnosisResult:
     combined = f"{code}\n{error_log}"
-    for rule in build_offline_patterns():
+    for rule in OFFLINE_PATTERNS:
         if re.search(str(rule["pattern"]), combined, flags=re.IGNORECASE):
             line_hint = parse_line_hint(error_log)
             culprit = infer_variable(error_log)
@@ -342,7 +344,10 @@ def offline_diagnose(language: str, code: str, error_log: str) -> DiagnosisResul
     )
 
 
-def llm_diagnose(provider: str, api_key: str, language: str, code: str, error_log: str) -> Optional[DiagnosisResult]:
+def llm_diagnose(
+    provider: str, api_key: str, language: str, code: str, error_log: str
+) -> "tuple[Optional[DiagnosisResult], Optional[str]]":
+    """Returns (result, error_message). error_message is set only when result is None."""
     system_prompt = (
         "You are an expert debugging assistant. Return STRICT JSON with keys: "
         "what_happened, root_cause, fix_explanation, buggy_snippet, fixed_snippet, knowledge_check (array of 3 short bullets), confidence."
@@ -382,18 +387,21 @@ def llm_diagnose(provider: str, api_key: str, language: str, code: str, error_lo
         if not isinstance(payload.get("knowledge_check"), list):
             payload["knowledge_check"] = ["Test edge cases.", "Validate inputs.", "Keep logs readable."]
 
-        return DiagnosisResult(
-            what_happened=payload.get("what_happened", "No explanation generated."),
-            root_cause=payload.get("root_cause", "No root cause generated."),
-            fix_explanation=payload.get("fix_explanation", "No fix generated."),
-            buggy_snippet=payload.get("buggy_snippet", code or ""),
-            fixed_snippet=payload.get("fixed_snippet", ""),
-            knowledge_check=payload.get("knowledge_check", []),
-            confidence=payload.get("confidence", "Medium"),
-            source=f"{provider} API",
+        return (
+            DiagnosisResult(
+                what_happened=payload.get("what_happened", "No explanation generated."),
+                root_cause=payload.get("root_cause", "No root cause generated."),
+                fix_explanation=payload.get("fix_explanation", "No fix generated."),
+                buggy_snippet=payload.get("buggy_snippet", code or ""),
+                fixed_snippet=payload.get("fixed_snippet", ""),
+                knowledge_check=payload.get("knowledge_check", []),
+                confidence=payload.get("confidence", "Medium"),
+                source=f"{provider} API",
+            ),
+            None,
         )
-    except Exception:
-        return None
+    except Exception as exc:  # noqa: BLE001 - surfaced to the user, not swallowed
+        return None, f"{provider} call failed ({exc.__class__.__name__}): {exc}"
 
 
 def choose_provider_from_key(api_key: str) -> str:
@@ -422,12 +430,14 @@ def render_header() -> None:
     )
 
 
-def render_result_card(title: str, body: str) -> None:
+def render_result_card(title: str, body: str, escape_body: bool = True) -> None:
+    safe_title = html.escape(title)
+    safe_body = html.escape(body) if escape_body else body
     st.markdown(
         f"""
         <div class="result-card">
-            <div class="result-title">{title}</div>
-            <div class="result-body">{body}</div>
+            <div class="result-title">{safe_title}</div>
+            <div class="result-body">{safe_body}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -465,9 +475,7 @@ def main() -> None:
     selected_language = st.selectbox(
         "Programming Language",
         LANGUAGE_CHOICES,
-        index=LANGUAGE_CHOICES.index(st.session_state.get("language", "Python"))
-        if st.session_state.get("language", "Python") in LANGUAGE_CHOICES
-        else 0,
+        key="language",
     )
 
     tab_code, tab_trace = st.tabs(["Faulty Code", "Traceback / Error Log"])
@@ -494,13 +502,15 @@ def main() -> None:
                 result: Optional[DiagnosisResult] = None
                 if api_key.strip() and enable_llm:
                     provider = choose_provider_from_key(api_key) if provider_choice == "Auto" else provider_choice
-                    result = llm_diagnose(
+                    result, llm_error = llm_diagnose(
                         provider=provider,
                         api_key=api_key.strip(),
                         language=selected_language,
                         code=st.session_state["faulty_code"],
                         error_log=st.session_state["error_log"],
                     )
+                    if llm_error:
+                        st.warning(f"{llm_error} — falling back to the offline rule engine.")
                 if result is None:
                     result = offline_diagnose(
                         language=selected_language,
@@ -511,8 +521,12 @@ def main() -> None:
 
     diagnosis: Optional[DiagnosisResult] = st.session_state.get("diagnosis")
     if diagnosis:
-        source_chip = f"<span class='source-chip'>{diagnosis.source}</span>"
-        confidence_chip = f"<span class='source-chip'>Confidence: {diagnosis.confidence}</span>" if show_confidence else ""
+        source_chip = f"<span class='source-chip'>{html.escape(diagnosis.source)}</span>"
+        confidence_chip = (
+            f"<span class='source-chip'>Confidence: {html.escape(diagnosis.confidence)}</span>"
+            if show_confidence
+            else ""
+        )
         st.markdown(f"{source_chip}{confidence_chip}", unsafe_allow_html=True)
 
         render_result_card("💡 What Happened?", diagnosis.what_happened)
@@ -527,8 +541,8 @@ def main() -> None:
             st.caption("Corrected Snippet")
             st.code(diagnosis.fixed_snippet, language=selected_language.lower())
 
-        bullet_items = "".join(f"<li>{tip}</li>" for tip in diagnosis.knowledge_check[:4])
-        render_result_card("🧠 Knowledge Check & Best Practice", f"<ul>{bullet_items}</ul>")
+        bullet_items = "".join(f"<li>{html.escape(str(tip))}</li>" for tip in diagnosis.knowledge_check[:4])
+        render_result_card("🧠 Knowledge Check & Best Practice", f"<ul>{bullet_items}</ul>", escape_body=False)
 
 
 if __name__ == "__main__":
